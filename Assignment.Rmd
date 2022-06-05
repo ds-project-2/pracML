@@ -106,11 +106,12 @@ So the gbm model has an accuracy of ~96%
 # Model choice + test
 
 So the random forest has the highest accuracy of ~97%, so we will choose it as our best model to apply to the original test data set.
-This gives a prediction of:
+This value of 97% can be viewed as an estimate of the out of sample error of the model,which we would expect to be relatively close to this.
+Applicatoin of the model to the test data gives a prediction of:
 ```{r}
 pred_random_forest <- predict(random_forest, test_data)
 ```
 
 # Conclusion
 
-The conclusoin for this project appears to be that for this specific dataset the gmb and random forest models were most accurate, whilst the decision tree was considerably far behind.
+The conclusion for this project appears to be that for this specific dataset the gmb and random forest models were most accurate, whilst the decision tree was considerably far behind.
