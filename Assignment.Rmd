@@ -1,0 +1,116 @@
+---
+title: "Assignment"
+author: "me"
+date: "05/06/2022"
+output: html_document
+---
+
+# Introduction
+
+## Project Summary
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, my goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+# Imports + loading data
+
+## Handle Dependencies
+
+```{r}
+library(dplyr)
+library(caret)
+library(ISLR)
+library(rpart)
+library(rattle)
+```
+
+## Load data
+ 
+```{r}
+#load train data
+test_data <- read.csv(file.path(getwd(),"pml-testing.csv"))
+#load test data
+train_data <- read.csv(file.path(getwd(),"pml-training.csv"))
+```
+
+## Removing zero covariates
+We now remove columns whose values have very low variance as they will likely make poor predictors
+```{r}
+zero_var_filter<- nearZeroVar(train_data)
+train_filt <- train_data[ ,-zero_var_filter]
+# Also filter out the first few time/user columns
+train_filt <- train_filt[, -c(0:6)]
+# Finally remove columns with nulls
+train_filt <- (train_filt %>%
+    select_if(~ !any(is.na(.))))
+```
+ 
+
+## Create test and train subsamples of this initial training data for cross-validation
+```{r}
+set.seed(1)
+train_subset <- createDataPartition(y=train_filt$classe, p=0.7, list=FALSE)
+train_df <- train_filt[train_subset, ]
+test_df <- train_filt[-train_subset, ]
+```
+
+# Model Training + Application
+
+We will train the following models on the train subset of the initial training data, then apply them to the test subset of the train data before selecting the best performer:
+
+1. Decision tree
+2. Random forest
+3. GBM
+
+##  Decision tree
+First fit the model
+```{r}
+decision_tree <- train(classe~.,data=train_df,trControl=trainControl(method='cv', number = 3),method='rpart')
+fancyRpartPlot(decision_tree$finalModel)
+```
+
+Now apply it to the test subset of the training data and determine the accuracy from the confusionMatrix object
+```{r}
+pred_dec_tree <- predict(decision_tree$finalModel, test_df, type = "class")
+matrix_dec_tree <- confusionMatrix(pred_dec_tree, as.factor(test_df$classe))
+matrix_dec_tree$overall[1]
+```
+So the decision tree model has an accuracy of ~49%
+
+##  Random forest
+First fit the model
+```{r}
+random_forest <- train(classe~.,data=train_df,trControl=trainControl(method='cv', number = 3),method='rf', ntree=3)
+```
+
+Now apply it to the test subset of the training data and determine the accuracy from the confusionMatrix object
+```{r}
+pred_random_forest <- predict(random_forest$finalModel, test_df, type = "class")
+matrix_random_forest <- confusionMatrix(pred_random_forest, as.factor(test_df$classe))
+matrix_random_forest$overall[1]
+```
+So the random forest model has an accuracy of ~97%
+
+##  GBM
+First fit the model
+```{r}
+gbm <- train(classe~.,data=train_df,trControl=trainControl(method='cv', number = 3),method='gbm',verbose=FALSE)
+```
+
+Now apply it to the test subset of the training data and determine the accuracy from the confusionMatrix object
+```{r}
+pred_gbm <- predict(gbm, test_df)
+matrix_gbm <- confusionMatrix(pred_gbm, as.factor(test_df$classe))
+matrix_gbm$overall[1]
+```
+So the gbm model has an accuracy of ~96%
+
+# Model choice + test
+
+So the random forest has the highest accuracy of ~97%, so we will choose it as our best model to apply to the original test data set.
+This gives a prediction of:
+```{r}
+pred_random_forest <- predict(random_forest, test_data)
+```
+
+# Conclusion
+
+The conclusoin for this project appears to be that for this specific dataset the gmb and random forest models were most accurate, whilst the decision tree was considerably far behind.
